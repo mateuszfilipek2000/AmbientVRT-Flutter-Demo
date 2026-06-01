@@ -81,6 +81,9 @@ class SizedSummaryCard extends StatelessWidget {
   }
 }
 
+/// A simple headline + supporting-copy card, rendered by the "Plain card"
+/// preview. Documentation-only change: the rendered pixels are unaffected, so
+/// the visual gate stays green.
 class PlainMessageCard extends StatelessWidget {
   const PlainMessageCard({super.key});
 
