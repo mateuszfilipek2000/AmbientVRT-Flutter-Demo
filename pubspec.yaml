@@ -1,0 +1,36 @@
+name: ambient_flutter_demo
+description: A public demo Flutter app showing AmbientVRT's visual-regression gate.
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  # AmbientVRT's Flutter capture adapter, pulled straight from the (private)
+  # package repo as a git dependency. `path:` points at the package's
+  # subdirectory in that monorepo; `ref:` pins the version. Resolving this needs
+  # read access to the private repo (CI uses a token — see the gate workflow).
+  ambient_flutter:
+    git:
+      url: https://github.com/mateuszfilipek2000/AmbientVRT.git
+      path: packages/ambient_flutter
+      ref: main
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/Roboto-Regular.ttf
+  fonts:
+    - family: AmbientPreviewSans
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf

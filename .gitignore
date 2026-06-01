@@ -1,0 +1,17 @@
+# Dart / Flutter build artifacts
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+doc/api/
+
+# Resolved lockfile references the private package commit; let CI re-resolve it.
+pubspec.lock
+
+# AmbientVRT report output (regenerated each run; baselines are committed).
+.ambient/report/
+
+# IDE
+*.iml
+.idea/
+.vscode/

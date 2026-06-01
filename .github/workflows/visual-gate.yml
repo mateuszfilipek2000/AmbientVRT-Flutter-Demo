@@ -1,0 +1,91 @@
+name: Visual gate
+
+# AmbientVRT visual-regression gate for this demo app.
+#
+# On every push and PR it re-captures the @Preview widgets inside the canonical
+# Flutter container, compares them against the committed baselines in
+# .ambient/baselines/, fails the check on any unaccepted visual change, and
+# uploads report.html + the baseline/candidate/diff PNGs as an artifact.
+#
+# The AmbientVRT package itself is private. CI reaches it with a read-only
+# Personal Access Token stored as the AMBIENT_REPO_TOKEN repository secret:
+#   - the `ambient_flutter` git dependency in pubspec.yaml resolves through it;
+#   - the standalone `ambient` engine binary is built from the same private repo.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: visual-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    name: ambient test
+    runs-on: ubuntu-latest
+    # Pinned canonical capture-env: same SDK + bundled fonts the committed
+    # baselines were captured in, so a clean re-capture is byte-identical.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    env:
+      # Marks in-container captures as canonical (matches canonicalEnv in
+      # ambient.config.yaml) so there's no non-canonical-capture warning.
+      AMBIENT_CAPTURE_ENV: ambient-flutter-local
+    steps:
+      - uses: actions/checkout@v4
+
+      # The checkout is owned by a different user than the container's root;
+      # trust the workspace so pub/flutter/git calls don't bail.
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      # Authenticate every github.com git fetch (the `ambient_flutter` git
+      # dependency AND the engine clone below) with the read-only token.
+      - name: Authenticate private package repo
+        env:
+          AMBIENT_REPO_TOKEN: ${{ secrets.AMBIENT_REPO_TOKEN }}
+        run: |
+          git config --global \
+            url."https://x-access-token:${AMBIENT_REPO_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+
+      # Build the standalone `ambient` engine binary from the private source,
+      # mirroring what a real consumer installs.
+      - name: Build ambient engine
+        run: |
+          git clone --depth 1 --branch main \
+            https://github.com/mateuszfilipek2000/AmbientVRT.git "$RUNNER_TEMP/engine"
+          "$RUNNER_TEMP/engine/tool/build.sh" --output "$RUNNER_TEMP/ambient"
+
+      - name: Resolve app deps
+        run: flutter pub get
+
+      # Capture previews -> compare against committed baselines -> write the
+      # report. A nonzero exit on changed / unaccepted-new snapshots is the red
+      # check that gates the PR.
+      - name: ambient test
+        run: |
+          "$RUNNER_TEMP/ambient" test \
+            --config ambient.config.yaml \
+            --report-dir .ambient/report
+
+      # upload-artifact is a JS action and the Flutter image ships no Node;
+      # install a minimal one first.
+      - name: Install Node.js for artifact upload
+        if: always()
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      # Upload even on a red run so the diff artifact is always available.
+      - name: Upload report + diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ambient-report
+          path: .ambient/report
+          if-no-files-found: warn
+          retention-days: 14
