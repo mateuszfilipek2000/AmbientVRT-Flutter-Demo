@@ -12,7 +12,13 @@ name: Visual gate
 #   - the `ambient_flutter` git dependency in pubspec.yaml resolves through it;
 #   - the standalone `ambient` engine binary is built from the same private repo.
 on:
+  # AmbientVRT baselines are branch-aware: the committed baselines live in the
+  # default-branch namespace. A pull_request run sets GITHUB_BASE_REF and compares
+  # against them; a raw feature-branch push has no base ref and would flag every
+  # snapshot as "new". So only run push on the default branch — PRs are covered by
+  # the pull_request trigger.
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
