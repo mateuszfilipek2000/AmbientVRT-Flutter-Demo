@@ -12,7 +12,13 @@ name: Visual gate
 #   - the `ambient_flutter` git dependency in pubspec.yaml resolves through it;
 #   - the standalone `ambient` engine binary is built from the same private repo.
 on:
+  # AmbientVRT baselines are branch-aware: the committed baselines live in the
+  # default-branch namespace. A pull_request run sets GITHUB_BASE_REF and compares
+  # against them; a raw feature-branch push has no base ref and would flag every
+  # snapshot as "new". So only run push on the default branch — PRs are covered by
+  # the pull_request trigger.
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -21,6 +27,8 @@ concurrency:
 
 permissions:
   contents: read
+  # Lets the visual gate post its sticky report comment on PRs.
+  pull-requests: write
 
 jobs:
   visual:
@@ -89,3 +97,34 @@ jobs:
           path: .ambient/report
           if-no-files-found: warn
           retention-days: 14
+
+      # `ambient test` writes summary.md next to report.html (before its
+      # exit-code check), so it's present on red runs too. Append a link to this
+      # run, where the full HTML report artifact can be downloaded.
+      - name: Build PR comment
+        if: always() && github.event_name == 'pull_request'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          mkdir -p .ambient/report
+          comment=.ambient/report/comment.md
+          if [ -f .ambient/report/summary.md ]; then
+            cp .ambient/report/summary.md "$comment"
+          else
+            printf '## ❌ ambient · visual regression\n\nThe run failed before a report was produced — see the logs.\n' > "$comment"
+          fi
+          {
+            echo
+            echo "📦 [Download the full HTML report & diff PNGs]($RUN_URL) — open \`report.html\` from the **ambient-report** artifact."
+          } >> "$comment"
+
+      # Sticky comment: keyed by `header`, so re-runs edit the same comment
+      # instead of stacking new ones. A comment failure (e.g. a read-only
+      # fork-PR token) must not mask the gate's real conclusion.
+      - name: Comment report on PR
+        if: always() && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: ambient-visual-gate
+          path: .ambient/report/comment.md
