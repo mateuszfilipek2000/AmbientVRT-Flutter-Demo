@@ -87,6 +87,7 @@ class PlainMessageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Theme.of(context).colorScheme.secondaryContainer,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -94,11 +95,11 @@ class PlainMessageCard extends StatelessWidget {
           spacing: 8,
           children: <Widget>[
             Text(
-              'AmbientVRT',
-              style: Theme.of(context).textTheme.headlineSmall,
+              'Ambient Visual Regression',
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             const Text(
-              'Flutter widget previews can be captured into deterministic PNG baselines.',
+              'Every pull request re-renders this card and diffs it against the blessed baseline.',
             ),
           ],
         ),
